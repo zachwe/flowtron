@@ -58,6 +58,8 @@ Dataset dependent layers can be [ignored]
 ## Multi-GPU (distributed) and Automatic Mixed Precision Training ([AMP])
 1. `python -m torch.distributed.launch --use_env --nproc_per_node=NUM_GPUS_YOU_HAVE train.py -c config.json -p train_config.output_directory=outdir train_config.fp16=true`
 
+2. `python distributed_train.py -c config.json -p train_config.output_directory=/opt/ml/model train_config.training_files="/opt/ml/input/data/training/train.txt" train_config.validation_files="/opt/ml/input/data/training/val.txt" train_config.warmstart_checkpoint_path="/opt/ml/input/data/pretrained/checkpoint.pt" train_config.tensorboard_path="s3://path/to/s3/tensorboard/logdir"
+
 ## Inference demo
 1. `python inference.py -c config.json -f models/flowtron_ljs.pt -w models/waveglow_256channels_v4.pt -t "It is well know that deep generative models have a deep latent space!" -i 0`
 
