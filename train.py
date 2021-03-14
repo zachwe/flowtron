@@ -106,8 +106,8 @@ def warmstart(checkpoint_path, model, include_layers=None):
 def load_checkpoint(checkpoint_path, model, optimizer, ignore_layers=[]):
     assert os.path.isfile(checkpoint_path)
     checkpoint_dict = torch.load(checkpoint_path, map_location='cpu')
-    iteration = checkpoint_dict['iteration']
-    model_dict = checkpoint_dict['model'].state_dict()
+    iteration = checkpoint_dict['iteration'] if 'iteration' in checkpoint_dict else 0
+    model_dict = checkpoint_dict['model'].state_dict() if 'model' in checkpoint_dict else checkpoint_dict['state_dict']
 
     if len(ignore_layers) > 0:
         model_dict = {k: v for k, v in model_dict.items()
@@ -179,7 +179,7 @@ def train(n_gpus, rank, output_directory, epochs, optim_algo, learning_rate,
           weight_decay, sigma, iters_per_checkpoint, batch_size, seed,
           checkpoint_path, ignore_layers, include_layers, finetune_layers,
           warmstart_checkpoint_path, with_tensorboard, grad_clip_val,
-          fp16_run):
+          fp16_run, tensorboard_path=None):
     fp16_run = bool(fp16_run)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
@@ -233,7 +233,9 @@ def train(n_gpus, rank, output_directory, epochs, optim_algo, learning_rate,
         print("Output directory", output_directory)
 
     if with_tensorboard and rank == 0:
-        tboard_out_path = os.path.join(output_directory, 'logs')
+        tboard_out_path = tensorboard_path
+        if tensorboard_path is None:
+            tboard_out_path = os.path.join(output_directory, "logs/run1")
         print("Setting up Tensorboard log in %s" % (tboard_out_path))
         logger = FlowtronLogger(tboard_out_path)
 
