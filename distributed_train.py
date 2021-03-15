@@ -1,12 +1,19 @@
 import argparse
+import os
 import signal
 import subprocess
+import sys
+import time
 
-from .train import train
+import torch
+
+from train import train
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("training_script_args", nargs=argparse.REMAINDER)
+    parser.add_argument('-c', '--config', type=str,
+                        help='JSON file for configuration')
+    parser.add_argument('-p', '--params', nargs='+', default=[])
     args = parser.parse_args()
 
     n_gpus = torch.cuda.device_count()
@@ -14,15 +21,15 @@ if __name__ == '__main__':
     current_env = os.environ.copy()
     current_env["MASTER_ADDR"] = "127.0.0.1"
     current_env["MASTER_PORT"] = "29500"
-    current_env["WORLD_SIZE"] = n_gpus
+    current_env["WORLD_SIZE"] = str(n_gpus)
 
     sig_names = {2: "SIGINT", 15: "SIGTERM"}
     last_return_code = None
     subprocs = []
     for r in range(n_gpus):
-        current_env["RANK"] = r
-        current_env["LOCAL_RANK"] = r
-        cmd = ["train.py"]
+        current_env["RANK"] = str(r)
+        current_env["LOCAL_RANK"] = str(r)
+        cmd = [sys.executable, "train.py"]
         def sigkill_handler(signum, frame):
             for process in subprocs:
                 print(f"Killing subprocess {process.pid}")
@@ -40,28 +47,28 @@ if __name__ == '__main__':
         signal.signal(signal.SIGINT, sigkill_handler)
         signal.signal(signal.SIGTERM, sigkill_handler)
 
-        stdout_handle = None if not subprocess_file_handles else subprocess_file_handles[r][0]
-        stderr_handle = None if not subprocess_file_handles else subprocess_file_handles[r][1]
-        cmd.extend(args.training_script_args)
+        stdout_handle = None
+        stderr_handle = None
+        cmd.extend(["-c", args.config, "-p", *args.params])
+        # cmd.extend(["-p", args.params])
 
         process = subprocess.Popen(cmd, env=current_env, stdout=stdout_handle, stderr=stderr_handle)
         subprocs.append(process)
 
-    try:
-        alive_processes = set(subprocs)
-        while len(alive_processes):
-            finished_processes = []
-            for process in alive_processes:
-                if process.poll() is None:
-                    # the process is still running
-                    continue
+    alive_processes = set(subprocs)
+    while len(alive_processes):
+        finished_processes = []
+        for process in alive_processes:
+            if process.poll() is None:
+                # the process is still running
+                continue
+            else:
+                if process.returncode != 0:
+                    last_return_code = process.returncode  # for sigkill_handler
+                    sigkill_handler(signal.SIGTERM, None)  # not coming back
                 else:
-                    if process.returncode != 0:
-                        last_return_code = process.returncode  # for sigkill_handler
-                        sigkill_handler(signal.SIGTERM, None)  # not coming back
-                    else:
-                        # exited cleanly
-                        finished_processes.append(process)
-            alive_processes = set(alive_processes) - set(finished_processes)
+                    # exited cleanly
+                    finished_processes.append(process)
+        alive_processes = set(alive_processes) - set(finished_processes)
 
-            time.sleep(1)
+        time.sleep(1)

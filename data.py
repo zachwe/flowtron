@@ -60,7 +60,9 @@ class Data(torch.utils.data.Dataset):
                  sampling_rate, mel_fmin, mel_fmax, max_wav_value, p_arpabet,
                  cmudict_path, text_cleaners, speaker_ids=None,
                  use_attn_prior=False, attn_prior_threshold=1e-4,
-                 randomize=True, keep_ambiguous=False, seed=1234):
+                 randomize=True, keep_ambiguous=False, seed=1234,
+                 data_path="."):
+        self.data_path = data_path
         self.max_wav_value = max_wav_value
         self.audiopaths_and_text = load_filepaths_and_text(filelist_path)
         self.use_attn_prior = use_attn_prior
@@ -128,7 +130,7 @@ class Data(torch.utils.data.Dataset):
     def __getitem__(self, index):
         # Read audio and text
         audiopath, text, speaker_id = self.audiopaths_and_text[index]
-        audio, sampling_rate = load_wav_to_torch(audiopath)
+        audio, sampling_rate = load_wav_to_torch(os.path.join(self.data_path, audiopath))
         if sampling_rate != self.sampling_rate:
             raise ValueError("{} SR doesn't match target {} SR".format(
                 sampling_rate, self.sampling_rate))
