@@ -13,7 +13,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-c', '--config', type=str,
                         help='JSON file for configuration')
-    parser.add_argument('-p', '--params', nargs='+', default=[])
+    # single string of whitespace-separated params for sagemaker
+    parser.add_argument('-p', '--params', type=str)
     args = parser.parse_args()
 
     n_gpus = torch.cuda.device_count()
@@ -49,7 +50,8 @@ if __name__ == '__main__':
 
         stdout_handle = None
         stderr_handle = None
-        cmd.extend(["-c", args.config, "-p", *args.params])
+        params = args.params.split(" ")
+        cmd.extend(["-c", args.config, "-p", *params])
         # cmd.extend(["-p", args.params])
 
         process = subprocess.Popen(cmd, env=current_env, stdout=stdout_handle, stderr=stderr_handle)
